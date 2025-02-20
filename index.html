@@ -98,9 +98,17 @@
     }
     .computer .hand {
       position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
     }
     .computer .hand img {
       height: 110px;
+      display: block;
+        margin: 0 auto;
+      align-items: center;
+      justify-content: center;
     }
     .computer .card-count {
       position: absolute;
@@ -115,6 +123,10 @@
       justify-content: center;
       font-size: 14px;
       color: #fff;
+    }
+      
+    .computer .hand img, .human-hand .card img {
+      object-fit: contain; /* or cover, as needed */
     }
 
     /* Human Player Hand */
@@ -155,6 +167,7 @@
       position: absolute;
       pointer-events: none;
       border: 2px dashed yellow;
+      border-radius: 10%;
     }
 
     .deck-count {
@@ -243,7 +256,7 @@
       <select id="numPlayers">
         <option value="2">2 Players</option>
         <option value="3">3 Players</option>
-        <option value="4">4 Players</option>
+        <option value="4" selected>4 Players</option>
         <option value="5">5 Players</option>
         <option value="6">6 Players</option>
       </select>
@@ -260,30 +273,23 @@
   <!-- Rules Modal -->
   <div class="modal-overlay" id="rulesModal">
     <div class="modal">
-      <h2>Pair Down Game Rules</h2>
-      <p>The goal is to be the first player to shed all your cards.</p>
-      <p>
-        Play a card that is either equal to or higher than the stockpile card,
-        forms a natural pair (adds to 14), or is a 7.
-      </p>
-      <p>Special actions:</p>
-      <ul style="text-align: left;">
-        <li>
-          <strong>7:</strong> When a 7 is played, you immediately get another turn
-          and can play any card.
-        </li>
-        <li>
-          <strong>14:</strong> Playing a 14 collects the entire stockpile as 1 point
-          per card (stockpile is preserved for scoring) and then play passes.
-        </li>
-        <li>
-          <strong>Natural Pair:</strong> If your played card plus the stockpile top equals 14, you skip the next player's turn.
-        </li>
-      </ul>
-      <p>
-        If you can’t play a valid card, tap the deck to draw one. If still no
-        valid move, tap Pass.
-      </p>
+        <h2>Pair Down Game Rules</h2>
+        <p>The goal is to be the first player to empty your hand.</p>
+        <p>
+          On your turn, play a card that is higher than or equal to the stockpile’s top card, forms a natural pair (adds to 14) with the stockpile’s top card, or is a 7.
+        </p>
+        <p>
+          If you can’t play a card, draw one card at a time until you obtain a legal play or you have drawn 3 consecutive cards, at which point you must pass your turn.
+        </p>
+        <p>
+          When you play a 14, you clear the stockpile (removing the pile from play) and your turn is over. The next player can place any card in the empty stockpile.
+        </p>
+        <p>
+          When you play a 7, you can play again and place any other card on top of it.
+        </p>
+        <p>
+          Scoring: The first player to empty their hand scores 100 points. All others score (7 minus the number of cards left) × 10, with any 7 in hand subtracting an extra 10 points. After 7 rounds, the highest total wins.
+        </p>
       <button id="closeRulesBtn">Close</button>
     </div>
   </div>
@@ -345,7 +351,8 @@
     avatar2: "https://images.squarespace-cdn.com/content/6707d0c6c57ca31459651c72/2ec4e2dc-09a6-48df-b36e-a0f6a4f78922/avatar2.png?content-type=image%2Fpng",
     avatar3: "https://images.squarespace-cdn.com/content/6707d0c6c57ca31459651c72/367f9118-4cbc-49b1-847d-9d7dd8e963d6/avatar3.png?content-type=image%2Fpng",
     avatar4: "https://images.squarespace-cdn.com/content/6707d0c6c57ca31459651c72/e143d910-e2ef-4692-9227-d11aa89949db/avatar4.png?content-type=image%2Fpng",
-    avatar5: "https://images.squarespace-cdn.com/content/6707d0c6c57ca31459651c72/6ee8a3c1-1aaa-4139-ad55-a0da2e5890fe/avatar5.png?content-type=image%2Fpng"
+    avatar5: "https://images.squarespace-cdn.com/content/6707d0c6c57ca31459651c72/6ee8a3c1-1aaa-4139-ad55-a0da2e5890fe/avatar5.png?content-type=image%2Fpng",
+    emptyStockpile: "https://images.squarespace-cdn.com/content/6707d0c6c57ca31459651c72/c15fdfee-f0eb-4557-ab60-252f6bb1bc2b/stockpile.png?content-type=image%2Fpng"
   };
 
   // Preload images
@@ -436,6 +443,8 @@
   let humanSelectedCardIndex = null;
   let humanTurnActive = false;
   let gameInProgress = false;
+  let currentDrawCount = 0; // resets at start of each turn
+
 
   // DOM elements
   const welcomeModal = document.getElementById("welcomeModal");
@@ -504,11 +513,12 @@
     if (canHumanPlay()) return;
     let drawnCard = deck.shift();
     updateDeckCount();
+    currentDrawCount++; 
     animateDrawCard(humanHandDiv, drawnCard, () => {
       players[0].hand.push(drawnCard);
       renderHumanHand();
     });
-    if (!canHumanPlay()) {
+    if (!canHumanPlay() && currentDrawCount >= 3) {
       passBtn.style.display = "block";
     }
   });
@@ -555,7 +565,7 @@
     humanTurnActive = false;
     passBtn.style.display = "none";
     players.push({ id: 0, name: "You", type: "human", hand: [], stockpile: [], score: 0 });
-    const computerNames = ["Deacon", "Elva", "Norma", "Anders", "Otis"];
+    const computerNames = ["Duncan", "Elva", "Norma", "Anders", "Otis"];
     for (let i = 1; i < numPlayers; i++) {
       players.push({ 
         id: i, 
@@ -614,7 +624,7 @@
       let topCard = stockPile[stockPile.length - 1];
       stockPileDiv.innerHTML = `<img src="${imageLinks["card" + topCard]}" alt="${topCard}" />`;
     } else {
-      stockPileDiv.innerHTML = "";
+      stockPileDiv.innerHTML = `<img src="${imageLinks.emptyStockpile}" alt="Empty Stockpile" />`;
     }
   }
   function renderComputerPlayers() {
@@ -650,7 +660,7 @@
       pDiv.textContent = `${p.name}: ${p.score}`;
       scoreContent.appendChild(pDiv);
     });
-    roundInfo.textContent = `Round: ${roundNumber}`;
+    roundInfo.textContent = `Round: ${roundNumber}/7`;
   }
   function isValidPlay(card) {
     if (stockPile.length === 0) return true;
@@ -666,51 +676,104 @@
     return players[0].hand.some(card => isValidPlay(card));
   }
   function playHumanCard(cardIndex) {
-    let card = players[0].hand[cardIndex];
-    if (!isValidPlay(card)) return;
-    let prevTop = stockPile.length > 0 ? stockPile[stockPile.length - 1] : null;
-    console.debug("You played card:", card);
-    if (card === 14) {
-      players[0].stockpile = players[0].stockpile.concat(stockPile);
-      stockPile = [];
-      players[0].stockpile.push(card);
-    } else {
-      stockPile.push(card);
+      let card = players[0].hand[cardIndex];
+      if (!isValidPlay(card)) return;
+      let prevTop = stockPile.length > 0 ? stockPile[stockPile.length - 1] : null;
+      console.debug("You played card:", card);
+      if (card === 14) {
+        // When 14 is played, clear the pile.
+        players[0].stockpile = players[0].stockpile.concat(stockPile);
+        stockPile = [];
+        players[0].stockpile.push(card);
+      } else {
+        stockPile.push(card);
+      }
+      players[0].hand.splice(cardIndex, 1);
+      renderHumanHand();
+      renderStockPile();
+      humanSelectedCardIndex = null;
+      passBtn.style.display = "none";
+      // Reset draw counter for human turn.
+      currentDrawCount = 0;
+      if (players[0].hand.length === 0) {
+        endRound(0);
+        return;
+      }
+      // Extra turn only for 7.
+      if (card === 7) {
+        humanTurnActive = true;
+      } else {
+        humanTurnActive = false;
+        nextTurn();
+      }
     }
-    players[0].hand.splice(cardIndex, 1);
-    renderHumanHand();
-    renderStockPile();
-    humanSelectedCardIndex = null;
-    passBtn.style.display = "none";
-    if (players[0].hand.length === 0) {
-      endRound(0);
-      return;
-    }
-    if (card === 7 || (prevTop !== null && card === prevTop)) {
-      humanTurnActive = true;
-    } else {
-      humanTurnActive = false;
-      nextTurn();
-    }
-  }
+
   function computerTurn() {
-    const computer = players[currentPlayerIndex];
-    console.log(`${computer.name}'s turn begins.`);
-    let played = false;
-    let playedCard = null;
-    let prevTop = stockPile.length > 0 ? stockPile[stockPile.length - 1] : null;
-    computer.hand.sort((a, b) => a - b);
-    console.log(`${computer.name} hand:`, computer.hand);
-    if (prevTop !== null) {
-      console.log("Current stockpile top:", prevTop);
-    } else {
-      console.log("Stockpile is empty.");
-    }
-    if (prevTop !== null) {
-      for (let i = 0; i < computer.hand.length; i++) {
-        if (computer.hand[i] + prevTop === 14) {
-          playedCard = computer.hand.splice(i, 1)[0];
-          console.log(`${computer.name} plays natural pair card:`, playedCard);
+      const computer = players[currentPlayerIndex];
+      currentDrawCount = 0;
+      console.log(`${computer.name}'s turn begins.`);
+      // Reset draw counter for computer's turn.
+      let drawCount = 0;
+      let played = false;
+      let playedCard = null;
+      let prevTop = stockPile.length > 0 ? stockPile[stockPile.length - 1] : null;
+
+      // Sort hand.
+      computer.hand.sort((a, b) => a - b);
+      console.log(`${computer.name} hand:`, computer.hand);
+
+      // Try to play a valid card (using your existing logic for natural pairs and matching)
+      // (Extra-turn condition: now only if played card is 7 or 14.)
+
+      // (1) Try natural pair first.
+      if (prevTop !== null) {
+        for (let i = 0; i < computer.hand.length; i++) {
+          if (computer.hand[i] + prevTop === 14) {
+            playedCard = computer.hand.splice(i, 1)[0];
+            console.log(`${computer.name} plays natural pair card:`, playedCard);
+            if (playedCard === 14) {
+              // When a 14 is played, clear the stockpile.
+              computer.stockpile = computer.stockpile.concat(stockPile);
+              stockPile = [];
+              computer.stockpile.push(playedCard);
+            } else {
+              stockPile.push(playedCard);
+            }
+            played = true;
+            break;
+          }
+        }
+      }
+      // (2) Then try matching card.
+      if (!played && prevTop !== null) {
+        for (let i = 0; i < computer.hand.length; i++) {
+          if (computer.hand[i] === prevTop) {
+            playedCard = computer.hand.splice(i, 1)[0];
+            console.log(`${computer.name} plays matching card:`, playedCard);
+            if (playedCard === 14) {
+              computer.stockpile = computer.stockpile.concat(stockPile);
+              stockPile = [];
+              computer.stockpile.push(playedCard);
+            } else {
+              stockPile.push(playedCard);
+            }
+            played = true;
+            break;
+          }
+        }
+      }
+      // (3) Then try the first valid card.
+      if (!played) {
+        let candidate = null;
+        for (let i = 0; i < computer.hand.length; i++) {
+          if (isValidPlay(computer.hand[i])) {
+            candidate = i;
+            break;
+          }
+        }
+        if (candidate !== null) {
+          playedCard = computer.hand.splice(candidate, 1)[0];
+          console.log(`${computer.name} plays first valid card:`, playedCard);
           if (playedCard === 14) {
             computer.stockpile = computer.stockpile.concat(stockPile);
             stockPile = [];
@@ -719,122 +782,73 @@
             stockPile.push(playedCard);
           }
           played = true;
-          break;
         }
       }
-    }
-    if (!played && prevTop !== null) {
-      for (let i = 0; i < computer.hand.length; i++) {
-        if (computer.hand[i] === prevTop) {
-          playedCard = computer.hand.splice(i, 1)[0];
-          console.log(`${computer.name} plays matching card:`, playedCard);
-          if (playedCard === 14) {
-            computer.stockpile = computer.stockpile.concat(stockPile);
-            stockPile = [];
-            computer.stockpile.push(playedCard);
-          } else {
-            stockPile.push(playedCard);
-          }
-          played = true;
-          break;
-        }
-      }
-    }
-    if (!played) {
-      let candidate = null;
-      for (let i = 0; i < computer.hand.length; i++) {
-        if (isValidPlay(computer.hand[i])) {
-          candidate = i;
-          break;
-        }
-      }
-      if (candidate !== null) {
-        playedCard = computer.hand.splice(candidate, 1)[0];
-        console.log(`${computer.name} plays first valid card:`, playedCard);
-        if (playedCard === 14) {
-          computer.stockpile = computer.stockpile.concat(stockPile);
-          stockPile = [];
-          computer.stockpile.push(playedCard);
-        } else {
-          stockPile.push(playedCard);
-        }
-        played = true;
-      }
-    }
-    if (!played) {
-      if (deck.length > 0) {
+      // (4) If no card was played, draw up to 3 times.
+      while (!played && deck.length > 0 && drawCount < 3) {
         console.log(`${computer.name} cannot play; drawing a card from deck.`);
         let drawnCard = deck.shift();
         updateDeckCount();
+        drawCount++;
         console.log(`${computer.name} drew:`, drawnCard);
-        animateDrawCard(
-          document.getElementById(`player-${computer.id}`).querySelector(".hand"),
-          drawnCard,
-          () => {
-            computer.hand.push(drawnCard);
-            updateComputerPlayerDisplay(computer.id);
-            console.log(`${computer.name} hand after drawing:`, computer.hand);
-            if (isValidPlay(drawnCard)) {
-              computer.hand.pop();
-              playedCard = drawnCard;
-              console.log(`${computer.name} now plays the drawn card:`, playedCard);
-              if (playedCard === 14) {
-                computer.stockpile = computer.stockpile.concat(stockPile);
-                stockPile = [];
-                computer.stockpile.push(playedCard);
-              } else {
-                stockPile.push(playedCard);
-              }
-              played = true;
-              const compHandElem = document.getElementById(`player-${computer.id}`).querySelector(".hand");
-              animateCardMove(compHandElem, stockPileDiv, playedCard, false, () => {
-                updateComputerPlayerDisplay(computer.id);
-                renderStockPile();
-                if (computer.hand.length === 0) {
-                  endRound(computer.id);
-                  return;
-                }
-                if (playedCard === 7 || (prevTop !== null && playedCard === prevTop)) {
-                  setTimeout(computerTurn, 1000);
-                } else {
-                  nextTurn();
-                }
-              });
-            } else {
-              console.log(`${computer.name} still cannot play after drawing; passing turn.`);
-              nextTurn();
-            }
+        computer.hand.push(drawnCard);
+        updateComputerPlayerDisplay(computer.id);
+        if (isValidPlay(drawnCard)) {
+          // Remove drawn card (assume it's the last element).
+          computer.hand.pop();
+          playedCard = drawnCard;
+          console.log(`${computer.name} now plays the drawn card:`, playedCard);
+          if (playedCard === 14) {
+            computer.stockpile = computer.stockpile.concat(stockPile);
+            stockPile = [];
+            computer.stockpile.push(playedCard);
+          } else {
+            stockPile.push(playedCard);
           }
-        );
-        return;
+          played = true;
+          break;
+        }
       }
-    }
-    if (playedCard === undefined || playedCard === null) {
-      console.error(`${computer.name} did not play a valid card; playedCard is:`, playedCard);
-      nextTurn();
-      return;
-    }
-    console.log(`${computer.name} played card:`, playedCard);
-    const compHandElem = document.getElementById(`player-${computer.id}`).querySelector(".hand");
-    animateCardMove(compHandElem, stockPileDiv, playedCard, false, () => {
-      updateComputerPlayerDisplay(computer.id);
-      renderStockPile();
-      if (computer.hand.length === 0) {
-        endRound(computer.id);
-        return;
-      }
-      if (playedCard === 7 || (prevTop !== null && playedCard === prevTop)) {
-        setTimeout(computerTurn, 1000);
-      } else {
+      // If still no play after 3 draws, pass the turn.
+      if (!played) {
+        console.log(`${computer.name} has drawn ${drawCount} times and still cannot play; passing turn.`);
         nextTurn();
+        return;
       }
-    });
-  }
+
+      // Guard: if playedCard is undefined/null, pass.
+      if (playedCard === undefined || playedCard === null) {
+        console.error(`${computer.name} did not play a valid card; playedCard is:`, playedCard);
+        nextTurn();
+        return;
+      }
+
+      console.log(`${computer.name} played card:`, playedCard);
+
+      // Animate computer's play.
+      const compHandElem = document.getElementById(`player-${computer.id}`).querySelector(".hand");
+      animateCardMove(compHandElem, stockPileDiv, playedCard, false, () => {
+        updateComputerPlayerDisplay(computer.id);
+        renderStockPile();
+        if (computer.hand.length === 0) {
+          endRound(computer.id);
+          return;
+        }
+        // Only extra turn if card is 7.
+        if (playedCard === 7) {
+          setTimeout(computerTurn, 1000);
+        } else {
+          nextTurn();
+        }
+      });
+    }
+
   function nextTurn() {
     currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
     highlightCurrentPlayer();
     if (players[currentPlayerIndex].type === "human") {
       humanTurnActive = true;
+      currentDrawCount = 0;
     } else {
       setTimeout(computerTurn, 1000);
     }
@@ -843,33 +857,45 @@
     document.querySelectorAll(".computer").forEach(div => { div.style.border = ""; });
     if (players[currentPlayerIndex].type === "computer") {
       const compDiv = document.getElementById(`player-${players[currentPlayerIndex].id}`);
-      if (compDiv) compDiv.style.border = "2px solid yellow";
+      if (compDiv) compDiv.style.cssText = "border: 2px solid yellow; border-radius: 20px;  padding: 5px;";
     } else {
-      humanHandDiv.style.border = "2px solid yellow";
+      humanHandDiv.style.cssText = "border: 2px solid yellow; border-radius: 50px;";
     }
     if (players[currentPlayerIndex].type !== "human") {
       humanHandDiv.style.border = "";
     }
   }
   function endRound(winnerId) {
-    const winnerText = (winnerId === 0) 
-      ? "You win the round!" 
-      : `${players.find(p => p.id === winnerId).name} wins the round!`;
-    roundWinnerText.textContent = winnerText;
-    roundModal.style.display = "flex";
-    players.forEach(p => {
-      let stockPoints = p.stockpile.reduce((sum, card) => sum + (card === 7 ? 2 : 1), 0);
-      let handPoints = p.hand.reduce((sum, card) => sum + (card === 7 ? -2 : -1), 0);
-      p.score += stockPoints + handPoints;
-      p.hand = [];
-      p.stockpile = [];
-    });
-  }
-  function continueNextRound() {
-    if (deck.length < 10) {
-      buildDeck();
-      shuffle(deck);
+      // If human wins, show "You win the round!" otherwise show computer's name.
+      const winnerText = (winnerId === 0)
+        ? "You win the round!"
+        : `${players.find(p => p.id === winnerId).name} wins the round!`;
+      roundWinnerText.textContent = winnerText;
+      roundModal.style.display = "flex";
+
+      // Scoring: The player who goes out gets 100 points.
+      // Others get: (7 - handCount) * 10, and if a 7 is in hand, subtract an extra 10.
+      players.forEach(p => {
+        if (p.hand.length === 0) {
+          p.score += 100;
+        } else {
+          let baseScore = (7 - p.hand.length) * 10;
+          // If there's any 7 in their hand, subtract 10.
+          if (p.hand.includes(7)) {
+            baseScore -= 10;
+          }
+          p.score += baseScore;
+        }
+        // Clear for next round.
+        p.hand = [];
+        p.stockpile = [];
+      });
     }
+
+  function continueNextRound() {
+    buildDeck();
+    shuffle(deck);
+    
     players.forEach(p => {
       p.hand = deck.splice(0, 7);
     });
